@@ -20,27 +20,35 @@
 <main class="container">
 
     <div class="card form-card">
-        <h2>Agregar Producto</h2>
-        <form id="form-agregar" class="form-agregar">
-            <div>
-                <label for="prod-id">ID del Producto</label>
-                <input type="number" id="prod-id" placeholder="ej: 101" min="1" required>
-            </div>
-            <div>
-                <label for="prod-nombre">Nombre</label>
-                <input type="text" id="prod-nombre" placeholder="ej: Pan de Muerto" required>
-            </div>
-            <div>
-                <label for="prod-precio">Precio</label>
-                <input type="number" id="prod-precio" step="0.01" placeholder="ej: 25.50" min="0.01" required>
-            </div>
-            <div>
-                <label for="prod-cantidad">Cantidad</label>
-                <input type="number" id="prod-cantidad" value="1" min="1" required>
-            </div>
-            <button type="submit" class="btn btn-primary">Agregar al Carrito</button>
-        </form>
-    </div>
+    <h2>Agregar Producto</h2>
+    <form id="form-agregar" class="form-agregar" novalidate> 
+        <div>
+            <label for="prod-id">ID del Producto</label>
+            <input type="number" id="prod-id" placeholder="ej: 101" min="1" required>
+            
+            <span class="error-message" id="id-error"></span>
+        </div>
+        <div>
+            <label for="prod-nombre">Nombre</label>
+            <input type="text" id="prod-nombre" placeholder="ej: Pan de Muerto" required>
+            
+            <span class="error-message" id="nombre-error"></span>
+        </div>
+        <div>
+            <label for="prod-precio">Precio</label>
+            <input type="number" id="prod-precio" step="0.01" placeholder="ej: 25.50" min="0.01" required>
+            
+            <span class="error-message" id="precio-error"></span>
+        </div>
+        <div>
+            <label for="prod-cantidad">Cantidad</label>
+            <input type="number" id="prod-cantidad" value="1" min="1" required>
+            
+            <span class="error-message" id="cantidad-error"></span>
+        </div>
+        <button type="submit" class="btn btn-primary">Agregar al Carrito</button>
+    </form>
+</div>
 
     <div class="card carrito-card">
         <h2>Mi Carrito</h2>
@@ -61,6 +69,8 @@
 
 <script>
     let localCart = [];
+    
+    const potentiallyHarmfulCharsRegex = /[<>"'`{};()/\\]|--|\/\*|\*\/|drop |delete |insert |update |script/i;
 
     document.addEventListener('DOMContentLoaded', cargarCarritoGuardado);
 
@@ -68,18 +78,14 @@
         try {
             const response = await fetch('/carrito/total');
             if (!response.ok) throw new Error('Error al cargar');
-            
             const data = await response.json();
-            
             localCart = data.productos.map(p => ({
                 id: p.id,
                 nombre: p.nombre,
                 precio: parseFloat(p.precio_unitario),
                 cantidad: parseInt(p.cantidad)
             }));
-            
             actualizarVistaCarrito();
-
         } catch (error) {
             console.error('Error:', error);
             alert('No se pudo cargar el carrito guardado.');
@@ -100,7 +106,6 @@
         localCart.forEach(item => {
             const subtotal = item.precio * item.cantidad;
             total += subtotal;
-
             const li = document.createElement('li');
             li.innerHTML = `
                 <span class="item-nombre">${item.nombre} (ID: ${item.id})</span>
@@ -110,19 +115,72 @@
             `;
             itemsLista.appendChild(li);
         });
-
         totalSpan.textContent = total.toFixed(2);
     }
 
     document.getElementById('form-agregar').addEventListener('submit', (e) => {
         e.preventDefault();
+        
+        const idInput = document.getElementById('prod-id');
+        const nombreInput = document.getElementById('prod-nombre');
+        const precioInput = document.getElementById('prod-precio');
+        const cantidadInput = document.getElementById('prod-cantidad');
+        
+        const idError = document.getElementById('id-error');
+        const nombreError = document.getElementById('nombre-error');
+        const precioError = document.getElementById('precio-error');
+        const cantidadError = document.getElementById('cantidad-error');
+        
+        idError.textContent = '';
+        nombreError.textContent = '';
+        precioError.textContent = '';
+        cantidadError.textContent = '';
+        idInput.classList.remove('is-invalid');
+        nombreInput.classList.remove('is-invalid');
+        precioInput.classList.remove('is-invalid');
+        cantidadInput.classList.remove('is-invalid');
 
-        const producto = {
-            id: parseInt(document.getElementById('prod-id').value),
-            nombre: document.getElementById('prod-nombre').value,
-            precio: parseFloat(document.getElementById('prod-precio').value),
-            cantidad: parseInt(document.getElementById('prod-cantidad').value)
-        };
+        const id = parseInt(idInput.value);
+        const nombre = nombreInput.value.trim();
+        const precio = parseFloat(precioInput.value);
+        const cantidad = parseInt(cantidadInput.value);
+
+        let isValid = true;
+
+
+        if (isNaN(id) || id <= 0) {
+            idError.textContent = 'El ID debe ser un número positivo.';
+            idInput.classList.add('is-invalid');
+            isValid = false;
+        }
+
+        if (nombre === '') {
+            nombreError.textContent = 'El nombre es obligatorio.';
+            nombreInput.classList.add('is-invalid');
+            isValid = false;
+        } else if (potentiallyHarmfulCharsRegex.test(nombre)) {
+            nombreError.textContent = 'El nombre contiene caracteres no permitidos.';
+            nombreInput.classList.add('is-invalid');
+            isValid = false;
+        }
+
+        if (isNaN(precio) || precio <= 0) {
+            precioError.textContent = 'El precio debe ser mayor a 0.';
+            precioInput.classList.add('is-invalid');
+            isValid = false;
+        }
+
+        if (isNaN(cantidad) || cantidad <= 0) {
+            cantidadError.textContent = 'La cantidad debe ser 1 o más.';
+            cantidadInput.classList.add('is-invalid');
+            isValid = false;
+        }
+        
+        if (!isValid) {
+            return; 
+        }
+
+        const producto = { id, nombre, precio, cantidad };
         
         const productoExistente = localCart.find(item => item.id === producto.id);
 
@@ -133,40 +191,33 @@
         }
 
         actualizarVistaCarrito();
-        e.target.reset();
+        e.target.reset(); 
     });
 
     function eliminarProducto(id) {
         if (!confirm(`¿Seguro que quieres eliminar el producto ID ${id}?`)) {
             return;
         }
-
         localCart = localCart.filter(item => item.id !== id);
-        
         actualizarVistaCarrito();
     }
 
     async function finalizarCompra() {
         if (localCart.length === 0) {
-            alert("El carrito está vacío. Agrega productos antes de finalizar.");
+            alert("El carrito está vacío.");
             return;
         }
-
         try {
             const response = await fetch('/carrito/finalizar', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ productos: localCart }) 
             });
-
             const data = await response.json();
-
             if (!response.ok) {
-                throw new Error(data.mensaje || 'Error al guardar el carrito.');
+                throw new Error(data.mensaje || 'Error al guardar.');
             }
-
             alert(data.mensaje); 
-
         } catch (error) {
             console.error('Error:', error);
             alert(`No se pudo finalizar la compra: ${error.message}`);
