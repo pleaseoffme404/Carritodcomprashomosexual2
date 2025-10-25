@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Alguien Mateme por favor</title>
+    <title>Carrito con guardado</title>
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -14,7 +14,7 @@
 <body>
 
 <header>
-    <h1>Carrito de Compras o algo asi</h1>
+    <h1>Carrito de Compras (Local)</h1>
 </header>
 
 <main class="container">
@@ -24,7 +24,7 @@
         <form id="form-agregar" class="form-agregar">
             <div>
                 <label for="prod-id">ID del Producto</label>
-                <input type="number" id="prod-id" placeholder="ej: 101" required>
+                <input type="number" id="prod-id" placeholder="ej: 101" min="1" required>
             </div>
             <div>
                 <label for="prod-nombre">Nombre</label>
@@ -32,7 +32,7 @@
             </div>
             <div>
                 <label for="prod-precio">Precio</label>
-                <input type="number" id="prod-precio" step="0.01" placeholder="ej: 25.50" required>
+                <input type="number" id="prod-precio" step="0.01" placeholder="ej: 25.50" min="0.01" required>
             </div>
             <div>
                 <label for="prod-cantidad">Cantidad</label>
@@ -44,58 +44,77 @@
 
     <div class="card carrito-card">
         <h2>Mi Carrito</h2>
-        <button onclick="cargarCarrito()" class="btn btn-secondary">Actualizar Carrito</button>
-
         <ul id="carrito-items">
-        </ul>
+            </ul>
 
         <hr>
 
         <div class="total-card">
             <strong>Total: $<span id="total-precio">0.00</span></strong>
         </div>
+
+        <button onclick="finalizarCompra()" class="btn btn-primary" style="width:100%; margin-top: 15px;">
+            Finalizar Compra y Guardar
+        </button>
     </div>
 </main>
 
 <script>
-    document.addEventListener('DOMContentLoaded', cargarCarrito);
+    let localCart = [];
 
-    async function cargarCarrito() {
+    document.addEventListener('DOMContentLoaded', cargarCarritoGuardado);
+
+    async function cargarCarritoGuardado() {
         try {
             const response = await fetch('/carrito/total');
             if (!response.ok) throw new Error('Error al cargar');
-
+            
             const data = await response.json();
-
-            const itemsLista = document.getElementById('carrito-items');
-            const totalSpan = document.getElementById('total-precio');
-
-            itemsLista.innerHTML = ''; // Limpiar lista
-
-            if (data.productos.length === 0) {
-                itemsLista.innerHTML = '<li>El carrito está vacío.</li>';
-            }
-
-            data.productos.forEach(item => {
-                const li = document.createElement('li');
-                li.innerHTML = `
-                        <span class="item-nombre">${item.nombre} (ID: ${item.id})</span>
-                        <span class="item-precio">${item.cantidad} x $${item.precio_unitario}</span>
-                        <span class="item-subtotal">$${parseFloat(item.subtotal).toFixed(2)}</span>
-                        <button class="btn-danger" onclick="eliminarProducto(${item.id})">Eliminar</button>
-                    `;
-                itemsLista.appendChild(li);
-            });
-
-            totalSpan.textContent = data.total;
+            
+            localCart = data.productos.map(p => ({
+                id: p.id,
+                nombre: p.nombre,
+                precio: parseFloat(p.precio_unitario),
+                cantidad: parseInt(p.cantidad)
+            }));
+            
+            actualizarVistaCarrito();
 
         } catch (error) {
             console.error('Error:', error);
-            alert('No se pudo cargar el carrito.');
+            alert('No se pudo cargar el carrito guardado.');
         }
     }
 
-    document.getElementById('form-agregar').addEventListener('submit', async (e) => {
+    function actualizarVistaCarrito() {
+        const itemsLista = document.getElementById('carrito-items');
+        const totalSpan = document.getElementById('total-precio');
+        
+        itemsLista.innerHTML = '';
+        let total = 0;
+
+        if (localCart.length === 0) {
+            itemsLista.innerHTML = '<li>El carrito está vacío.</li>';
+        }
+
+        localCart.forEach(item => {
+            const subtotal = item.precio * item.cantidad;
+            total += subtotal;
+
+            const li = document.createElement('li');
+            li.innerHTML = `
+                <span class="item-nombre">${item.nombre} (ID: ${item.id})</span>
+                <span class="item-precio">${item.cantidad} x $${item.precio.toFixed(2)}</span>
+                <span class="item-subtotal">$${subtotal.toFixed(2)}</span>
+                <button class="btn-danger" onclick="eliminarProducto(${item.id})">Eliminar</button>
+            `;
+            itemsLista.appendChild(li);
+        });
+
+        totalSpan.textContent = total.toFixed(2);
+    }
+
+    document.getElementById('form-agregar').addEventListener('submit', (e) => {
         e.preventDefault();
 
         const producto = {
@@ -104,42 +123,53 @@
             precio: parseFloat(document.getElementById('prod-precio').value),
             cantidad: parseInt(document.getElementById('prod-cantidad').value)
         };
+        
+        const productoExistente = localCart.find(item => item.id === producto.id);
 
-        try {
-            const response = await fetch('/carrito/agregar', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(producto)
-            });
-
-            if (!response.ok) throw new Error('Error al agregar');
-
-            cargarCarrito();
-            e.target.reset();
-
-        } catch (error) {
-            console.error('Error:', error);
-            alert('No se pudo agregar el producto.');
+        if (productoExistente) {
+            productoExistente.cantidad += producto.cantidad;
+        } else {
+            localCart.push(producto);
         }
+
+        actualizarVistaCarrito();
+        e.target.reset();
     });
 
-    async function eliminarProducto(id) {
+    function eliminarProducto(id) {
         if (!confirm(`¿Seguro que quieres eliminar el producto ID ${id}?`)) {
             return;
         }
 
+        localCart = localCart.filter(item => item.id !== id);
+        
+        actualizarVistaCarrito();
+    }
+
+    async function finalizarCompra() {
+        if (localCart.length === 0) {
+            alert("El carrito está vacío. Agrega productos antes de finalizar.");
+            return;
+        }
+
         try {
-            const response = await fetch(`/carrito/eliminar/${id}`, {
-                method: 'DELETE'
+            const response = await fetch('/carrito/finalizar', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ productos: localCart }) 
             });
 
-            if (!response.ok) throw new Error('Error al eliminar');
+            const data = await response.json();
 
-            cargarCarrito();
+            if (!response.ok) {
+                throw new Error(data.mensaje || 'Error al guardar el carrito.');
+            }
+
+            alert(data.mensaje); 
 
         } catch (error) {
             console.error('Error:', error);
-            alert('No se pudo eliminar el producto.');
+            alert(`No se pudo finalizar la compra: ${error.message}`);
         }
     }
 </script>

@@ -1,71 +1,7 @@
-
 const express = require('express');
 
 module.exports = (pool) => {
     const router = express.Router();
-
-
-    router.get('/', async (req, res) => {
-        try {
-            const [rows] = await pool.query(
-                'SELECT producto_id AS id, nombre, precio, cantidad FROM carrito_items'
-            );
-            res.json(rows); // Devuelve los items (antes era 'cart')
-        } catch (error) {
-            console.error("Error al obtener carrito:", error);
-            res.status(500).json({ mensaje: 'Error en el servidor' });
-        }
-    });
-
-
-    router.post('/agregar', async (req, res) => {
-        const { id, nombre, precio, cantidad } = req.body;
-
-        if (!id || !nombre || !precio || !cantidad) {
-            return res.status(400).json({ mensaje: 'Faltan datos (id, nombre, precio, cantidad)' });
-        }
-
-        try {
-
-            const sql = `
-                INSERT INTO carrito_items (producto_id, nombre, precio, cantidad)
-                VALUES (?, ?, ?, ?)
-                ON DUPLICATE KEY UPDATE cantidad = cantidad + ?;
-            `;
-
-            await pool.query(sql, [id, nombre, precio, cantidad, cantidad]);
-
-            const [cart] = await pool.query('SELECT producto_id AS id, nombre, precio, cantidad FROM carrito_items');
-            res.json({ mensaje: 'Producto agregado al carrito', carrito: cart });
-
-        } catch (error) {
-            console.error("Error al agregar producto:", error);
-            res.status(500).json({ mensaje: 'Error en el servidor' });
-        }
-    });
-
-
-    router.delete('/eliminar/:id', async (req, res) => {
-        try {
-            const id = parseInt(req.params.id);
-
-            const [result] = await pool.query(
-                'DELETE FROM carrito_items WHERE producto_id = ?',
-                [id]
-            );
-
-            if (result.affectedRows === 0) {
-                return res.status(404).json({ mensaje: 'Producto no encontrado en el carrito' });
-            }
-
-            const [cart] = await pool.query('SELECT producto_id AS id, nombre, precio, cantidad FROM carrito_items');
-            res.json({ mensaje: 'Producto eliminado', carrito: cart });
-
-        } catch (error) {
-            console.error("Error al eliminar producto:", error);
-            res.status(500).json({ mensaje: 'Error en el servidor' });
-        }
-    });
 
 
     router.get('/total', async (req, res) => {
@@ -90,6 +26,63 @@ module.exports = (pool) => {
 
         } catch (error) {
             console.error("Error al obtener total:", error);
+            res.status(500).json({ mensaje: 'Error en el servidor' });
+        }
+    });
+
+  
+    router.post('/finalizar', async (req, res) => {
+        const { productos } = req.body; 
+
+        if (!Array.isArray(productos)) {
+            return res.status(400).json({ mensaje: 'Datos no válidos. Se esperaba un array de productos.' });
+        }
+        
+        for (const prod of productos) {
+            if (prod.cantidad <= 0 || prod.precio <= 0) {
+                return res.status(400).json({ mensaje: `Datos inválidos para ${prod.nombre}. Cantidad y precio deben ser positivos.`});
+            }
+        }
+
+        try {
+            const connection = await pool.getConnection();
+            await connection.beginTransaction();
+
+            await connection.query('DELETE FROM carrito_items');
+
+            if (productos.length > 0) {
+                const values = productos.map(p => [p.id, p.nombre, p.precio, p.cantidad]);
+                
+                const sqlInsert = `
+                    INSERT INTO carrito_items (producto_id, nombre, precio, cantidad) 
+                    VALUES ?
+                `;
+                await connection.query(sqlInsert, [values]);
+            }
+
+            await connection.commit();
+            connection.release();
+            
+            res.json({ mensaje: 'Compra finalizada y guardada en la base de datos.' });
+
+        } catch (error) {
+            console.error("Error al finalizar compra:", error);
+            if (connection) {
+                await connection.rollback();
+                connection.release();
+            }
+            res.status(500).json({ mensaje: 'Error en el servidor al guardar.' });
+        }
+    });
+
+    router.get('/', async (req, res) => {
+        try {
+            const [rows] = await pool.query(
+                'SELECT producto_id AS id, nombre, precio, cantidad FROM carrito_items'
+            );
+            res.json(rows);
+        } catch (error) {
+            console.error("Error al obtener carrito:", error);
             res.status(500).json({ mensaje: 'Error en el servidor' });
         }
     });
