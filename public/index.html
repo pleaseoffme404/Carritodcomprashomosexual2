@@ -3,40 +3,59 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Carrito con MySQL</title>
-    <style>
-        body { font-family: sans-serif; display: grid; grid-template-columns: 1fr 2fr; gap: 20px; max-width: 900px; margin: 20px auto; }
-        div { border: 1px solid #ccc; padding: 10px; border-radius: 5px; }
-        h2 { margin-top: 0; }
-        input { margin-bottom: 5px; width: calc(100% - 10px); }
-        button { cursor: pointer; }
-        #carrito-items li { display: flex; justify-content: space-between; border-bottom: 1px solid #eee; padding: 5px 0;}
-        #carrito-items li span { flex-basis: 25%; }
-        #total-container { background-color: #f4f4f4; }
-    </style>
+    <title>Alguien Mateme por favor</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Raleway:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet">
+
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
-<div>
-    <h2>Agregar Producto</h2>
-    <form id="form-agregar">
-        <input type="number" id="prod-id" placeholder="ID del Producto (ej: 101)" required>
-        <input type="text" id="prod-nombre" placeholder="Nombre (ej: Pan de Muerto)" required>
-        <input type="number" id="prod-precio" step="0.01" placeholder="Precio (ej: 25.50)" required>
-        <input type="number" id="prod-cantidad" value="1" min="1" required>
-        <button type="submit">Agregar al Carrito</button>
-    </form>
-</div>
 
-<div>
-    <h2>Mi Carrito</h2>
-    <button onclick="cargarCarrito()">Actualizar Carrito</button>
-    <ul id="carrito-items">
-    </ul>
-    <hr>
-    <div id="total-container">
-        <strong>Total: $<span id="total-precio">0.00</span></strong>
+<header>
+    <h1>Carrito de Compras o algo asi</h1>
+</header>
+
+<main class="container">
+
+    <div class="card form-card">
+        <h2>Agregar Producto</h2>
+        <form id="form-agregar" class="form-agregar">
+            <div>
+                <label for="prod-id">ID del Producto</label>
+                <input type="number" id="prod-id" placeholder="ej: 101" required>
+            </div>
+            <div>
+                <label for="prod-nombre">Nombre</label>
+                <input type="text" id="prod-nombre" placeholder="ej: Pan de Muerto" required>
+            </div>
+            <div>
+                <label for="prod-precio">Precio</label>
+                <input type="number" id="prod-precio" step="0.01" placeholder="ej: 25.50" required>
+            </div>
+            <div>
+                <label for="prod-cantidad">Cantidad</label>
+                <input type="number" id="prod-cantidad" value="1" min="1" required>
+            </div>
+            <button type="submit" class="btn btn-primary">Agregar al Carrito</button>
+        </form>
     </div>
-</div>
+
+    <div class="card carrito-card">
+        <h2>Mi Carrito</h2>
+        <button onclick="cargarCarrito()" class="btn btn-secondary">Actualizar Carrito</button>
+
+        <ul id="carrito-items">
+        </ul>
+
+        <hr>
+
+        <div class="total-card">
+            <strong>Total: $<span id="total-precio">0.00</span></strong>
+        </div>
+    </div>
+</main>
 
 <script>
     document.addEventListener('DOMContentLoaded', cargarCarrito);
@@ -51,20 +70,23 @@
             const itemsLista = document.getElementById('carrito-items');
             const totalSpan = document.getElementById('total-precio');
 
-            itemsLista.innerHTML = '';
+            itemsLista.innerHTML = ''; // Limpiar lista
+
+            if (data.productos.length === 0) {
+                itemsLista.innerHTML = '<li>El carrito está vacío.</li>';
+            }
 
             data.productos.forEach(item => {
                 const li = document.createElement('li');
                 li.innerHTML = `
-                        <span>${item.nombre} (ID: ${item.id})</span>
-                        <span>${item.cantidad} x $${item.precio_unitario}</span>
-                        <span>Subtotal: $${item.subtotal}</span>
-                        <button onclick="eliminarProducto(${item.id})">Eliminar</button>
+                        <span class="item-nombre">${item.nombre} (ID: ${item.id})</span>
+                        <span class="item-precio">${item.cantidad} x $${item.precio_unitario}</span>
+                        <span class="item-subtotal">$${parseFloat(item.subtotal).toFixed(2)}</span>
+                        <button class="btn-danger" onclick="eliminarProducto(${item.id})">Eliminar</button>
                     `;
                 itemsLista.appendChild(li);
             });
 
-            // Actualizar el total
             totalSpan.textContent = data.total;
 
         } catch (error) {
