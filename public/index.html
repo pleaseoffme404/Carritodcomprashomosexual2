@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Carrito con MySQL</title>
+    <style>
+        body { font-family: sans-serif; display: grid; grid-template-columns: 1fr 2fr; gap: 20px; max-width: 900px; margin: 20px auto; }
+        div { border: 1px solid #ccc; padding: 10px; border-radius: 5px; }
+        h2 { margin-top: 0; }
+        input { margin-bottom: 5px; width: calc(100% - 10px); }
+        button { cursor: pointer; }
+        #carrito-items li { display: flex; justify-content: space-between; border-bottom: 1px solid #eee; padding: 5px 0;}
+        #carrito-items li span { flex-basis: 25%; }
+        #total-container { background-color: #f4f4f4; }
+    </style>
+</head>
+<body>
+<div>
+    <h2>Agregar Producto</h2>
+    <form id="form-agregar">
+        <input type="number" id="prod-id" placeholder="ID del Producto (ej: 101)" required>
+        <input type="text" id="prod-nombre" placeholder="Nombre (ej: Pan de Muerto)" required>
+        <input type="number" id="prod-precio" step="0.01" placeholder="Precio (ej: 25.50)" required>
+        <input type="number" id="prod-cantidad" value="1" min="1" required>
+        <button type="submit">Agregar al Carrito</button>
+    </form>
+</div>
+
+<div>
+    <h2>Mi Carrito</h2>
+    <button onclick="cargarCarrito()">Actualizar Carrito</button>
+    <ul id="carrito-items">
+    </ul>
+    <hr>
+    <div id="total-container">
+        <strong>Total: $<span id="total-precio">0.00</span></strong>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', cargarCarrito);
+
+    async function cargarCarrito() {
+        try {
+            const response = await fetch('/carrito/total');
+            if (!response.ok) throw new Error('Error al cargar');
+
+            const data = await response.json();
+
+            const itemsLista = document.getElementById('carrito-items');
+            const totalSpan = document.getElementById('total-precio');
+
+            itemsLista.innerHTML = '';
+
+            data.productos.forEach(item => {
+                const li = document.createElement('li');
+                li.innerHTML = `
+                        <span>${item.nombre} (ID: ${item.id})</span>
+                        <span>${item.cantidad} x $${item.precio_unitario}</span>
+                        <span>Subtotal: $${item.subtotal}</span>
+                        <button onclick="eliminarProducto(${item.id})">Eliminar</button>
+                    `;
+                itemsLista.appendChild(li);
+            });
+
+            // Actualizar el total
+            totalSpan.textContent = data.total;
+
+        } catch (error) {
+            console.error('Error:', error);
+            alert('No se pudo cargar el carrito.');
+        }
+    }
+
+    document.getElementById('form-agregar').addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        const producto = {
+            id: parseInt(document.getElementById('prod-id').value),
+            nombre: document.getElementById('prod-nombre').value,
+            precio: parseFloat(document.getElementById('prod-precio').value),
+            cantidad: parseInt(document.getElementById('prod-cantidad').value)
+        };
+
+        try {
+            const response = await fetch('/carrito/agregar', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(producto)
+            });
+
+            if (!response.ok) throw new Error('Error al agregar');
+
+            cargarCarrito();
+            e.target.reset();
+
+        } catch (error) {
+            console.error('Error:', error);
+            alert('No se pudo agregar el producto.');
+        }
+    });
+
+    async function eliminarProducto(id) {
+        if (!confirm(`¿Seguro que quieres eliminar el producto ID ${id}?`)) {
+            return;
+        }
+
+        try {
+            const response = await fetch(`/carrito/eliminar/${id}`, {
+                method: 'DELETE'
+            });
+
+            if (!response.ok) throw new Error('Error al eliminar');
+
+            cargarCarrito();
+
+        } catch (error) {
+            console.error('Error:', error);
+            alert('No se pudo eliminar el producto.');
+        }
+    }
+</script>
+</body>
+</html>

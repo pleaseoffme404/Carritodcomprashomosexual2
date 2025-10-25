@@ -1,0 +1,20 @@
+{
+  "name": "carritodcomprashomosexual2",
+  "version": "1.0.0",
+  "description": "apparently not moans",
+  "main": "app.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "dev": "nodemon app.js"
+  },
+  "author": "pleaseoffme404",
+  "license": "ISC",
+  "dependencies": {
+    "dotenv": "^17.2.3",
+    "express": "^5.1.0",
+    "express-session": "^1.18.2",
+    "mysql2": "^3.15.3",
+    "nodemon": "^3.1.10",
+    "router": "^2.2.0"
+  }
+}
